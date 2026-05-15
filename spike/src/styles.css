@@ -46,6 +46,20 @@ body,
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
 }
 
+.spike-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.spike-sidebar {
+  width: 280px;
+  border-right: 1px solid #2a2a2e;
+  background: #131316;
+  overflow: auto;
+  flex-shrink: 0;
+}
+
 .spike-main {
   flex: 1;
   overflow: auto;
@@ -53,4 +67,8 @@ body,
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.spike-file {
+  scroll-margin-top: 16px;
 }
