@@ -104,6 +104,21 @@ body {
   height: 100%;
   color: var(--deck-fg-muted);
   font-size: 13px;
+  gap: 12px;
+  grid-auto-flow: row;
+}
+
+.deck-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--deck-border);
+  border-top-color: var(--deck-fg-muted);
+  animation: deck-spin 0.8s linear infinite;
+}
+
+@keyframes deck-spin {
+  to { transform: rotate(360deg); }
 }
 
 .deck-error,

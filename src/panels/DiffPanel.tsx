@@ -173,6 +173,12 @@ export function DiffPanel({ handleRef }: Props) {
           <FileTree model={treeModel} />
         </aside>
         <main className="deck-diff-main">
+          {diffLoading && files.length === 0 && (
+            <div className="deck-empty">
+              <span className="deck-spinner" aria-hidden="true" />
+              <span>Loading diff…</span>
+            </div>
+          )}
           {!diffLoading && files.length === 0 && !diffError && (
             <div className="deck-empty">
               No changes between {base || "—"} and {head || "—"}.
