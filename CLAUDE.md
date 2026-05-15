@@ -36,6 +36,12 @@ Deck is a personal, single-user AI development environment. See `docs/PRD.md` fo
 - Not a replacement for the IDE — editing happens in the agent or in another editor.
 - Not generalized. Every feature is built for Felix's workflow first.
 
+## Repo layout
+
+- **Root** (`./`) — where Phase 1 onwards lives. Currently empty of code (only docs + `spike/`).
+- **`spike/`** — Phase 0 throwaway validation spike. Gate passed 2026-05-15. **Delete this as the first commit of Phase 1.** Do not extend or build on it — the point of "throwaway" is to resist scaffolding sunk-cost.
+- **`docs/`** — `PRD.md`, `DECISIONS.md`, `ROADMAP.md`.
+
 ## References
 
 - Product context: `docs/PRD.md`

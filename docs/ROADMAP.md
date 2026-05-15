@@ -6,23 +6,25 @@ Feature IDs (F1–F18) map to `docs/PRD.md` §6.
 
 ---
 
-## Phase 0 — Validation spike (1 weekend)
+## Phase 0 — Validation spike ✅ PASSED (2026-05-15)
 
 **Goal:** Prove the substrate works before sinking real time into it.
 
-**Build:**
-- Throwaway Tauri 2.x + React + Vite shell.
-- Render one real diff from an actual repo using `@pierre/diffs`.
-- Three hardcoded fake annotations via Pierre's annotation API.
-- Pierre Shiki theme applied to both diff and tree.
+**Built (in `spike/`, throwaway — to be deleted at Phase 1 scaffold):**
+- Tauri 2.11.1 + React 19 + TS + Vite + pnpm shell.
+- Rendered PR #847 from `Naiss-Ride/mobile-app` (13 files, 5 TS + 8 SQL, 1579 adds) via `@pierre/diffs` `FileDiff`, `parsePatchFiles()` over raw `gh pr diff` output.
+- `@pierre/trees` `useFileTree` sidebar with `added` badges.
+- Three interactive annotations (blocker / suggestion / nit) wired through Pierre's `lineAnnotations` + `renderAnnotation` API. Each with severity styling, expand/collapse, and Accept / Dismiss / Ask placeholder buttons.
+- `pierre-dark` / `pierre-light` themes via `themeType: 'system'`.
 
-**Gate (all must pass):**
-- Tauri cold start feels acceptable (subjective; target <2s).
-- `@pierre/diffs` render quality matches Pierre's own demos in the browser.
-- Annotation API ergonomics feel right — no obvious "we'd have to fork this to make it work" moments.
-- No blocker bugs in Pierre libs.
+**Gate results — all green:**
+| H | Result | Evidence |
+|---|---|---|
+| H1 — Pierre renders well | ✅ | 13 files, 545-line SQL, no `gh pr diff` preprocessing. |
+| H2 — Annotation API fits | ✅ | `DiffLineAnnotation<T>` generic on custom metadata; documented public API was sufficient — no forking, no overlay hack. |
+| H3 — Tauri feels real | ✅ | **10 MB** release `.app` (15× smaller than Electron), **~2s** cold start to diff visible. |
 
-If gate fails → rethink stack before going further. Electron fallback is the most likely pivot.
+Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with measured numbers: `spike/README.md`.
 
 ---
 
@@ -30,12 +32,20 @@ If gate fails → rethink stack before going further. Electron fallback is the m
 
 **Goal:** A working diff review app, no AI yet.
 
-**Build:**
+**Build (at repo root, NOT in `spike/`):**
+- Delete `spike/` as the first commit (we carry lessons, not files).
+- Scaffold Tauri 2 + React + TS + Vite + pnpm fresh at repo root with the same versions we validated in Phase 0.
 - **F3** — Diff viewer (Pierre-backed, branch picker, file tree via `@pierre/trees`).
 - **F7** — Command palette (`cmdk`, panel-scoped command registration).
 - Tauri scaffolding for git operations (read worktrees, list branches, get diff via `git2-rs`).
 - SQLite setup with a first migration file (annotations table, even if unused yet).
 - Left rail with panel switcher.
+
+**Phase 0 lessons that change Phase 1 work:**
+- **Scope Shiki language loading.** Pierre bundles 80+ language grammars by default — our Phase 0 JS bundle hit ~900 kB / ~260 kB gzipped. Phase 1 needs an explicit allowlist (TS, JS, TSX, JSX, SQL, Rust, MD, JSON, TOML, YAML, Shell, CSS, Python, Go, Swift) loaded eagerly; everything else lazy or omitted.
+- **`gh pr diff` path basis is the source of truth.** The fixture used `packages/supabase/supabase/migrations/...` — Phase 1's git integration must surface the same paths Pierre's parser produces, otherwise annotation-to-file matching breaks silently.
+- **`@pierre/trees` is still beta (1.0.0-beta.3) and uses Preact internally** with a React wrapper. Phase 1 needs to test refs and context interop in the real layout (with the panel rail + diff area), not just the flat sidebar the spike used.
+- **Pierre theme is bundled.** `pierre-dark` / `pierre-light` work via `themeType: 'system'` with no separate package install needed.
 
 **Gate:** Can I review a real branch diff in Deck end-to-end (open app → pick refs → see diff → close), and does it feel as good or better than GitHub's diff view?
 
