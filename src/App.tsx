@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { ActivePanelProvider, useActivePanel } from "./contexts/ActivePanel";
 import { WorktreeProvider } from "./contexts/Worktree";
+import { ThemeProvider, useTheme } from "./contexts/Theme";
 import {
   CommandRegistryProvider,
   useRegisterCommands,
@@ -21,48 +22,44 @@ function PanelArea() {
 }
 
 function GlobalCommands() {
+  const { mode, setMode, cycle } = useTheme();
   useRegisterCommands("global", [
     {
       id: "palette.open",
       label: "Open command palette",
       hint: "⌘K",
       scope: "global",
-      execute: () => {
-        // No-op; the palette opens by keyboard. Listed here as proof-of-concept.
-      },
+      execute: () => {},
     },
     {
       id: "app.toggleTheme",
-      label: "Toggle theme (light/dark/system)",
+      label: `Toggle theme (current: ${mode})`,
       scope: "global",
-      execute: () => {
-        const root = document.documentElement;
-        const current = root.dataset.theme ?? "system";
-        const next = current === "system" ? "light" : current === "light" ? "dark" : "system";
-        root.dataset.theme = next;
-        if (next === "light") root.style.colorScheme = "light";
-        else if (next === "dark") root.style.colorScheme = "dark";
-        else root.style.colorScheme = "light dark";
-      },
+      execute: cycle,
     },
+    { id: "app.theme.light", label: "Theme: light", scope: "global", execute: () => setMode("light") },
+    { id: "app.theme.dark", label: "Theme: dark", scope: "global", execute: () => setMode("dark") },
+    { id: "app.theme.system", label: "Theme: system", scope: "global", execute: () => setMode("system") },
   ]);
   return null;
 }
 
 function App() {
   return (
-    <WorktreeProvider>
-      <ActivePanelProvider>
-        <CommandRegistryProvider>
-          <GlobalCommands />
-          <main className="deck-shell">
-            <PanelRail />
-            <PanelArea />
-          </main>
-          <CommandPalette />
-        </CommandRegistryProvider>
-      </ActivePanelProvider>
-    </WorktreeProvider>
+    <ThemeProvider>
+      <WorktreeProvider>
+        <ActivePanelProvider>
+          <CommandRegistryProvider>
+            <GlobalCommands />
+            <main className="deck-shell">
+              <PanelRail />
+              <PanelArea />
+            </main>
+            <CommandPalette />
+          </CommandRegistryProvider>
+        </ActivePanelProvider>
+      </WorktreeProvider>
+    </ThemeProvider>
   );
 }
 

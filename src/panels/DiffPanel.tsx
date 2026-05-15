@@ -4,20 +4,17 @@ import {
   useRef,
   useState,
   useCallback,
+  type CSSProperties,
 } from "react";
 import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { FileTree } from "@pierre/trees/react";
-import { FileTree as FileTreeModel } from "@pierre/trees";
+import { FileTree as FileTreeModel, themeToTreeStyles } from "@pierre/trees";
 import { listBranches, getDiff } from "../lib/git";
 import { useWorktree } from "../contexts/Worktree";
 import { BranchPicker, type BranchPickerHandle } from "../components/BranchPicker";
 import { usePanelCommands } from "../hooks/usePanelCommands";
-
-const DIFF_OPTIONS = {
-  theme: { dark: "pierre-dark", light: "pierre-light" },
-  themeType: "system",
-} as const;
+import { useTheme } from "../contexts/Theme";
 
 export interface DiffPanelHandle {
   reload: () => void;
@@ -31,6 +28,18 @@ interface Props {
 
 export function DiffPanel({ handleRef }: Props) {
   const { identity, loading: worktreeLoading, error: worktreeError } = useWorktree();
+  const { mode: themeMode, resolved: themeResolved } = useTheme();
+  const diffOptions = useMemo(
+    () => ({
+      theme: { dark: "pierre-dark", light: "pierre-light" },
+      themeType: themeMode,
+    }) as const,
+    [themeMode],
+  );
+  const treeStyles = useMemo(
+    () => themeToTreeStyles({ type: themeResolved }) as CSSProperties,
+    [themeResolved],
+  );
   const [branches, setBranches] = useState<string[]>([]);
   const [base, setBase] = useState<string>("");
   const [head, setHead] = useState<string>("");
@@ -170,7 +179,7 @@ export function DiffPanel({ handleRef }: Props) {
 
       <div className="deck-diff-body">
         <aside className="deck-diff-tree">
-          <FileTree model={treeModel} />
+          <FileTree model={treeModel} style={treeStyles} />
         </aside>
         <main className="deck-diff-main">
           {diffLoading && files.length === 0 && (
@@ -192,7 +201,7 @@ export function DiffPanel({ handleRef }: Props) {
               }}
               className="deck-diff-file"
             >
-              <FileDiff fileDiff={file} options={DIFF_OPTIONS} />
+              <FileDiff fileDiff={file} options={diffOptions} />
             </div>
           ))}
         </main>
