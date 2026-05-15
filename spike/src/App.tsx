@@ -10,6 +10,12 @@ import { diffText } from "./fixtures";
 import { ANNOTATIONS, type AnnotationMeta } from "./annotations";
 import "./styles.css";
 
+const DIFF_OPTIONS = {
+  theme: { dark: "pierre-dark", light: "pierre-light" },
+  themeType: "system" as const,
+  diffStyle: "unified" as const,
+};
+
 const SEVERITY_GLYPHS: Record<AnnotationMeta["severity"], string> = {
   blocker: "●",
   suggestion: "◆",
@@ -132,6 +138,7 @@ function App() {
             >
               <FileDiff<AnnotationMeta>
                 fileDiff={fileDiff}
+                options={DIFF_OPTIONS}
                 lineAnnotations={ANNOTATIONS[fileDiff.name] ?? []}
                 renderAnnotation={renderAnnotation}
               />
