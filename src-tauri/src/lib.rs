@@ -1,3 +1,5 @@
+mod git;
+
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -15,6 +17,12 @@ pub fn run() {
                 .add_migrations("sqlite:deck.db", migrations)
                 .build(),
         )
+        .invoke_handler(tauri::generate_handler![
+            git::repo_identity,
+            git::list_branches,
+            git::list_worktrees,
+            git::get_diff,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
