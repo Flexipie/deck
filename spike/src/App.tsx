@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   parsePatchFiles,
   type DiffLineAnnotation,
@@ -16,24 +16,63 @@ const SEVERITY_GLYPHS: Record<AnnotationMeta["severity"], string> = {
   nit: "·",
 };
 
-function renderAnnotation(
-  annotation: DiffLineAnnotation<AnnotationMeta>,
-) {
+function AnnotationCard({
+  annotation,
+}: {
+  annotation: DiffLineAnnotation<AnnotationMeta>;
+}) {
+  const [expanded, setExpanded] = useState(false);
   const meta = annotation.metadata;
+  const toggle = () => setExpanded((v) => !v);
   return (
     <div
-      className={`annotation annotation--${meta.severity}`}
+      className={`annotation annotation--${meta.severity}${expanded ? " is-expanded" : ""}`}
       data-annotation-id={meta.id}
     >
-      <div className="annotation__row">
+      <button
+        type="button"
+        className="annotation__row annotation__toggle"
+        aria-expanded={expanded}
+        onClick={toggle}
+      >
         <span className="annotation__glyph" aria-hidden="true">
           {SEVERITY_GLYPHS[meta.severity]}
         </span>
         <span className="annotation__severity">{meta.severity}</span>
         <span className="annotation__title">{meta.title}</span>
-      </div>
+        <span className="annotation__chevron" aria-hidden="true">
+          {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+      {expanded && (
+        <div className="annotation__body">
+          <p className="annotation__detail">{meta.detail}</p>
+          {meta.suggestion && (
+            <pre className="annotation__suggestion">
+              <code>{meta.suggestion}</code>
+            </pre>
+          )}
+          <div className="annotation__actions">
+            <button type="button" className="annotation__action annotation__action--primary">
+              Accept
+            </button>
+            <button type="button" className="annotation__action">
+              Dismiss
+            </button>
+            <button type="button" className="annotation__action">
+              Ask
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function renderAnnotation(
+  annotation: DiffLineAnnotation<AnnotationMeta>,
+) {
+  return <AnnotationCard annotation={annotation} />;
 }
 
 function App() {
