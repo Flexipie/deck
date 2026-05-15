@@ -38,8 +38,16 @@ Deck is a personal, single-user AI development environment. See `docs/PRD.md` fo
 
 ## Repo layout
 
-- **Root** (`./`) — where Phase 1 onwards lives. Currently empty of code (only docs + `spike/`).
-- **`spike/`** — Phase 0 throwaway validation spike. Gate passed 2026-05-15. **Delete this as the first commit of Phase 1.** Do not extend or build on it — the point of "throwaway" is to resist scaffolding sunk-cost.
+- **`src/`** — React frontend.
+  - `panels/` — one file per panel (`DiffPanel.tsx`). New panel = new file here.
+  - `components/` — reusable bits: `PanelRail`, `BranchPicker`, `CommandPalette`.
+  - `contexts/` — providers: `ActivePanel`, `Worktree`, `Theme`, `CommandRegistry`.
+  - `hooks/` — `usePanelCommands` for panel command registration.
+  - `lib/` — boundary to platform: `highlighter` (Shiki preload), `db` (SQLite wrapper), `git` (Tauri command shims).
+- **`src-tauri/`** — Rust core.
+  - `src/git.rs` — `git2-rs` commands (`repo_identity`, `list_branches`, `list_worktrees`, `get_diff`). Repo path hardcoded for Phase 1 (`const PHASE1_REPO_PATH`).
+  - `src/lib.rs` — Tauri builder, plugin wiring, command registration.
+  - `migrations/0001_initial.sql` — annotations table (schema mirrors Pierre's `DiffLineAnnotation<T>`; unused until Phase 2).
 - **`docs/`** — `PRD.md`, `DECISIONS.md`, `ROADMAP.md`.
 
 ## References

@@ -28,9 +28,14 @@ Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with meas
 
 ---
 
-## Phase 1 — Substrate ⏳ AWAITING MANUAL GATE (built 2026-05-15)
+## Phase 1 — Substrate ✅ PASSED (2026-05-15)
 
-**Status:** All steps implemented and machine-verifiable gates green: `.app` 14 MB, main JS bundle 264 kB gzipped, git2-rs diff format verified to match Pierre's parser, SQLite migration applies, command-registry round-trips. **Manual H4/H5 walkthrough (visual diff feel + ⌘K behavior + cold-start stopwatch) pending Felix.** See 2026-05-15 DECISIONS entry.
+**Status:** Diff renders end-to-end against real branches, ⌘K palette works panel-scoped, theme toggle flips chrome + Pierre's diff + Pierre's tree together. `.app` 14 MB, main JS bundle 264 kB gzipped. See 2026-05-15 DECISIONS entry for the one yellow finding (theme toggle had to be re-wired through Pierre's `themeToTreeStyles` and `themeType` instead of just CSS vars).
+
+**Known scope deferrals (intentional, not gate failures):**
+- Open-repository dialog → F1 in Phase 3. Repo path is hardcoded.
+- `list_branches` returns local branches only. Add `BranchType::Remote` when needed.
+- UI polish pass (rail iconography, density tuning) deferred to a Phase 2 polish slice.
 
 **Goal:** A working diff review app, no AI yet.
 

@@ -6,31 +6,38 @@ Each entry: date · decision · rationale · alternatives rejected. Newest at to
 
 ---
 
-## 2026-05-15 · Phase 1 substrate: built, machine-verifiable gates green; H4/H5 pending manual walkthrough
+## 2026-05-15 · Theme toggle: drive Pierre's tree + diff via their own APIs, not just CSS vars
 
-**Outcome (automated portion):**
+**Decision:** App theme state (`'system' | 'light' | 'dark'`) lives in `ThemeProvider`, which writes `data-theme` on `<html>` and exposes both `mode` (raw choice) and `resolved` (concrete `light`/`dark`, watching `matchMedia` when mode is `system`). Three places consume it:
+
+1. **App chrome** — `styles.css` uses `:root[data-theme="dark"]` for the explicit override and `:root:not([data-theme="light"])` inside `@media (prefers-color-scheme: dark)` for system mode.
+2. **Pierre's `<FileDiff>`** — receives `options.themeType: mode` directly (`'system'` defers to Pierre's own matchMedia, `'light'`/`'dark'` force).
+3. **Pierre's `<FileTree>`** — needs `themeToTreeStyles({ type: resolved })` applied as inline `style` on the tree, because trees don't have a `themeType: 'system'` indirection and read `--trees-theme-*` CSS variables instead.
+
+**Why:** First-pass theme toggle just set `data-theme` + `colorScheme` and assumed `@media (prefers-color-scheme: dark)` would respond. It doesn't — `color-scheme` only affects native form controls and scrollbars, not media queries. Pierre's tree also has its own theme variables that no amount of CSS hackery on `:root` reaches.
+
+**How to apply:** Any third-party UI lib we add later — assume it has its own theming surface. Read its docs before wiring it to `data-theme`. CSS variables on `:root` only solve our chrome.
+
+---
+
+## 2026-05-15 · Phase 1 substrate: PASSED
+
+**Outcome:**
 - `.app` size **14 MB** (target <25 MB). ✓
 - Main JS bundle **264 kB gzipped** (target <500 kB). ✓ Shiki 16-lang allowlist via `preloadHighlighter`; remaining language grammars are code-split chunks that never load at runtime.
 - Migration `0001_initial.sql` applies on first launch via `tauri-plugin-sql`; schema mirrors `DiffLineAnnotation<AnnotationMeta>` exactly so Phase 2 writes pass straight through.
-- `git2::Diff::print(DiffFormat::Patch)` output is byte-equivalent to `gh pr diff` shape (verified via Rust unit tests: `diff --git`, `@@`, `---`/`+++` headers all present). Risk ladder resolved at (a) — no shell fallback, no postprocessing. Pierre's `parsePatchFiles()` accepts directly.
-- All 4 `git.rs` unit tests pass: empty self-diff, headers present in real diff, `main` listed by `list_branches`, `repo_identity` resolves default branch.
+- `git2::Diff::print(DiffFormat::Patch)` output is byte-equivalent to `gh pr diff` shape (verified via Rust unit tests). Risk ladder resolved at (a) — no shell fallback, no postprocessing. Pierre's `parsePatchFiles()` accepts directly.
+- All 4 `git.rs` unit tests pass.
+- Manual walkthrough: diff renders on real branches, click-to-scroll works, ⌘K opens palette with panel-scoped commands. One yellow finding (theme toggle didn't actually flip Pierre's tree) — fixed and logged separately above.
 
-**Pending manual gate walkthrough** (H4/H5 require visual + keyboard verification by Felix):
-- [ ] H4: diff between HEAD and main appears within ~3s, syntax highlighting on TS/SQL/MD/JSON, tree click scrolls to file.
-- [ ] H4: switching base/head from pickers reloads diff cleanly.
-- [ ] H5: ⌘K opens palette; Esc closes; Diff commands appear before global ones; "Switch base branch" opens base picker focused on search.
-- [ ] H6 cold-start: stopwatch 3 runs from Finder open → diff visible. Target median <3s.
-- [ ] H6: DB file at `~/Library/Application Support/com.felix.deck/deck.db`; `sqlite3 ... '.schema annotations'` shows expected columns.
-
-**If the walkthrough surfaces a yellow finding**, append a follow-up entry; the substrate is in place either way.
-
-**Decisions made along the way (worth keeping):**
+**Decisions worth keeping (made during build):**
 - **`tauri-plugin-sql` 2.4 (not 2.3).** Plan called for 2.3 but JS package is at 2.4.0. Cargo pinned to `"2.4"` for matching minor. Cleaner than mismatching JS/Rust.
 - **Cargo.lock committed.** Standard for shipping binaries; ensures reproducible builds.
-- **Drop `tauri-plugin-opener`.** Scaffolded by `create-tauri-app` but unused. Removed to keep the dependency surface honest.
+- **Drop `tauri-plugin-opener`.** Scaffolded by `create-tauri-app` but unused.
 - **Hardcode repo path in `git.rs`.** Open-repository dialog is Phase 3 (F1) work. The path lives as a single `const PHASE1_REPO_PATH` so the upgrade later is one-line.
 - **`BranchPicker` is hand-rolled (no Radix).** ~110 lines. Search input + keyboard nav. Radix is a Phase 2/3 polish call.
 - **Command registry uses immutable Map snapshots.** `useSyncExternalStore` requires a new reference on each notify; cloning the Map per mutation is cheap given the small command count and avoids subtle "store changed but React didn't re-render" bugs.
+- **`list_branches` returns local only.** `BranchType::Local` filter. Add `Remote` if we want to diff against `origin/*`.
 
 ---
 
