@@ -12,6 +12,7 @@ import { FileTree as FileTreeModel } from "@pierre/trees";
 import { listBranches, getDiff } from "../lib/git";
 import { useWorktree } from "../contexts/Worktree";
 import { BranchPicker, type BranchPickerHandle } from "../components/BranchPicker";
+import { usePanelCommands } from "../hooks/usePanelCommands";
 
 const DIFF_OPTIONS = {
   theme: { dark: "pierre-dark", light: "pierre-light" },
@@ -115,6 +116,20 @@ export function DiffPanel({ handleRef }: Props) {
       handleRef.current = null;
     };
   }, [handleRef, reload]);
+
+  usePanelCommands("diff", [
+    { id: "diff.reload", label: "Reload diff", execute: reload },
+    {
+      id: "diff.switchBase",
+      label: "Switch base branch",
+      execute: () => basePickerRef.current?.open(),
+    },
+    {
+      id: "diff.switchHead",
+      label: "Switch head branch",
+      execute: () => headPickerRef.current?.open(),
+    },
+  ]);
 
   if (worktreeLoading) {
     return <div className="deck-empty">Loading repo identity…</div>;

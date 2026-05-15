@@ -274,3 +274,77 @@ body {
   font-size: 12px;
   color: var(--deck-fg-muted);
 }
+
+.deck-palette-hidden-trigger {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.deck-palette-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: start center;
+  padding-top: 14vh;
+  z-index: 50;
+}
+
+.deck-palette {
+  width: 520px;
+  max-width: calc(100% - 32px);
+  background: var(--deck-bg);
+  border: 1px solid var(--deck-border);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.deck-palette-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid var(--deck-border);
+  background: transparent;
+  color: var(--deck-fg);
+  font-size: 14px;
+  outline: none;
+}
+
+.deck-palette-list {
+  max-height: 360px;
+  overflow: auto;
+  padding: 6px 0;
+}
+
+.deck-palette-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.deck-palette-item[data-selected="true"] {
+  background: var(--deck-border);
+}
+
+.deck-palette-label {
+  color: var(--deck-fg);
+}
+
+.deck-palette-hint {
+  color: var(--deck-fg-muted);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.deck-palette-empty {
+  padding: 14px;
+  color: var(--deck-fg-muted);
+  font-size: 13px;
+}
