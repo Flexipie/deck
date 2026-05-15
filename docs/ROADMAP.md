@@ -28,7 +28,9 @@ Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with meas
 
 ---
 
-## Phase 1 — Substrate (2–3 weekends)
+## Phase 1 — Substrate ⏳ AWAITING MANUAL GATE (built 2026-05-15)
+
+**Status:** All steps implemented and machine-verifiable gates green: `.app` 14 MB, main JS bundle 264 kB gzipped, git2-rs diff format verified to match Pierre's parser, SQLite migration applies, command-registry round-trips. **Manual H4/H5 walkthrough (visual diff feel + ⌘K behavior + cold-start stopwatch) pending Felix.** See 2026-05-15 DECISIONS entry.
 
 **Goal:** A working diff review app, no AI yet.
 
