@@ -6,6 +6,41 @@ Each entry: date · decision · rationale · alternatives rejected. Newest at to
 
 ---
 
+## 2026-05-15 · Phase 0 gate: PASSED. Stack survives.
+
+**Outcome:** All three hypotheses (H1 Pierre rendering, H2 annotation API, H3 Tauri shell) cleared the gate green. Phase 1 starts on the same stack — no pivots.
+
+**Numbers:**
+- Release-build `.app` size: **10 MB** (target was <15 MB; Electron baseline ~150 MB).
+- Cold start: window almost instant, diff fully painted at **~2 s** (PRD target <2.5 s).
+- Type-check + Vite build both clean. Tauri release build compiled in 60 s on first run.
+
+**What worked:**
+- `parsePatchFiles()` accepts raw `gh pr diff` output directly; no preprocessing.
+- Pierre's annotation contract (`lineAnnotations: DiffLineAnnotation<T>[]` + `renderAnnotation(a) => ReactNode`, generic on a custom metadata type) is exactly what the Phase 2 adapter pattern needs — Claude → JSON → typed metadata → Pierre annotation, no fanning out.
+- `pierre-dark` / `pierre-light` themes are bundled inside `@pierre/diffs`, no separate install required for our needs.
+- The whole spike (Tauri 2 + React 19 + Pierre + tree sidebar + interactive annotations) sits at 10 MB.
+
+**What we learned for Phase 1:**
+- Pierre bundles 80+ Shiki language grammars by default. Our JS bundle ballooned to ~900 kB / ~260 kB gzipped. Phase 1 must scope language loading to languages we'll actually see (TS, JS, SQL, Rust, MD, JSON, TOML — done; Wolfram, Emacs Lisp, etc — no).
+- `@pierre/trees` is still on `1.0.0-beta.3` and uses Preact internally with a React API wrapper. Phase 1 needs to test refs/context interop in our real layout, not just a flat sidebar.
+- The `gh pr diff` flow generated a fixture with the actual repo path (`packages/supabase/supabase/migrations/...`) — Phase 1's git integration must use the same path basis or the annotation file matching breaks.
+
+**Phase 1 next steps:**
+- Delete `spike/` before scaffolding (we carry lessons, not files — per the load-bearing rule).
+- Scaffold Phase 1 at repo root using Tauri 2 + React 19 + TS + Vite + pnpm.
+- Build F3 (Diff viewer) and F7 (Command palette) first per ROADMAP.md.
+
+---
+
+## 2026-05-15 · Pierre libraries are Apache 2.0, not MIT
+
+**Correction:** Initial `DECISIONS.md` and `PRD.md` entries listed `@pierre/diffs` and `@pierre/trees` as MIT. Both libraries publish under **Apache 2.0** (confirmed in `node_modules/@pierre/diffs/package.json` and the [pierrecomputer/pierre](https://github.com/pierrecomputer/pierre) repo).
+
+**Impact:** None on our use — Apache 2.0 is equally permissive for our local-first, single-user, non-distributed tool. Forking is still permitted. Noting it here so future-me doesn't get surprised by an MIT assumption.
+
+---
+
 ## 2026-05-15 · Working name is "Deck"
 
 **Decision:** Use "Deck" throughout code, docs, and commits until a real name is picked.

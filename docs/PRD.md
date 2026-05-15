@@ -192,7 +192,7 @@ This section is the "why" for each significant choice. Every decision has altern
 - `@pierre/diffs` has a first-class annotation API designed for exactly the AI-overlay use case Deck is built around. Built-in support for inline accept/reject UI, line selection, token hover hooks.
 - `@pierre/trees` has built-in git status badges, which saves a moderate amount of plumbing.
 - Both use Shiki themes, ensuring the file tree and diff look like they belong together with no design work.
-- The libraries are TypeScript / vanilla JS / React, ships on npm, MIT-licensed, free to use.
+- The libraries are TypeScript / vanilla JS / React, ships on npm, Apache-2.0 licensed, free to use.
 - Saves an estimated 4–6 weekends of work versus building diff rendering from scratch.
 
 **Rejected alternatives:**
@@ -494,8 +494,8 @@ Real-world wall time: **5–7 months** including life happening.
 |---|---|---|---|
 | Tauri | App shell | MIT/Apache-2.0 | Low |
 | Svelte or React | UI framework | MIT | Very low |
-| `@pierre/diffs` | Diff rendering | MIT | Medium (young) |
-| `@pierre/trees` | File tree | MIT | Medium (young) |
+| `@pierre/diffs` | Diff rendering | Apache-2.0 | Low (active maintenance, weekly commits) |
+| `@pierre/trees` | File tree | Apache-2.0 | Medium (still 1.0.0-beta.3 as of Phase 0) |
 | Shiki | Syntax highlighting (used by Pierre) | MIT | Very low |
 | xterm.js | Terminal rendering | MIT | Very low |
 | tmux | Terminal multiplexer / session persistence | ISC | Very low |

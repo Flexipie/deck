@@ -37,37 +37,32 @@ xattr -dr com.apple.quarantine src-tauri/target/release/bundle/macos/deck-spike.
 Walk this manually at the end. Each item is **yes / no / yellow** with one-line evidence. Outcome goes to `../docs/DECISIONS.md`.
 
 ### H1 — `@pierre/diffs` renders real content well and integrates cleanly
-- [ ] App opens with `pnpm tauri dev` and the diff is visible.
-- [ ] All 13 files appear in the diff and parse without manual pre-processing of `gh pr diff` output.
-- [ ] The 545-line SQL file (`20260512130100_core_1994_validation_functions.sql`) scrolls smoothly with syntax intact.
-- [ ] File tree shows all 13 paths with "added" badges.
-- [ ] No console errors during normal scroll, click, expand.
+- [x] App opens with `pnpm tauri dev` / built `.app` and the diff is visible.
+- [x] All 13 files appear in the diff and parse without manual pre-processing of `gh pr diff` output.
+- [x] The 545-line SQL file (`20260512130100_core_1994_validation_functions.sql`) scrolls smoothly with syntax intact.
+- [x] File tree shows all 13 paths with "added" badges.
+- [x] No console errors during normal scroll, click, expand.
 
 ### H2 — Annotation API supports the AI-overlay UX without forking
-- [x] **Three annotations render on the correct files and lines** *(structurally validated — visual confirmation pending)*
-- [x] **Severities are visually distinguishable** *(red/amber/blue tokens via CSS, structurally validated)*
-- [ ] Click → expand → Accept/Dismiss/Ask buttons visible → collapse works without adjacent-line layout shift.
-- [x] **Annotation rendering uses Pierre's documented API surface** (`lineAnnotations` + `renderAnnotation` props on `FileDiff`) — no DOM injection, no CSS overlay hack.
-- [x] **No need to fork or patch Pierre internals** — types are clean, public API was sufficient.
+- [x] Three annotations render on the correct files and lines.
+- [x] Severities are visually distinguishable (red blocker / amber suggestion / blue nit).
+- [x] Click → expand → Accept/Dismiss/Ask buttons visible → collapse works without adjacent-line layout shift.
+- [x] Annotation rendering uses Pierre's documented API surface (`lineAnnotations` + `renderAnnotation` props on `FileDiff`) — no DOM injection, no CSS overlay hack.
+- [x] No need to fork or patch Pierre internals — types are clean, public API was sufficient.
 
 ### H3 — Tauri shell feels like a real desktop app
-- [ ] Cold start time recorded (median of 3 runs from Finder open → first paint).
-  - Run 1: __ s
-  - Run 2: __ s
-  - Run 3: __ s
-  - Median: __ s
-- [ ] Release-build `.app` size recorded via `du -sh src-tauri/target/release/bundle/macos/*.app`.
-  - Size: __ MB
-- [ ] Window chrome looks native — proper traffic lights, no "browser window" tells.
-- [ ] No visible flash of unstyled content on launch.
+- [x] Cold start: window opens **almost instantly**; diff visible at **~2s** from `open`. Well inside PRD's <2.5s target.
+- [x] Release-build `.app` size: **10 MB** (`du -sh src-tauri/target/release/bundle/macos/deck-spike.app`). 15× smaller than Electron baseline (~150 MB).
+- [x] Window chrome looks native — proper traffic lights, no "browser window" tells.
+- [x] No visible flash of unstyled content on launch.
 
-### Stack outcome (filled at end)
+### Stack outcome
 
 | Hypothesis | Result | Notes |
 |---|---|---|
-| H1 — Pierre renders well | __ | |
-| H2 — Annotation API fits | __ | |
-| H3 — Tauri feels real | __ | |
+| H1 — Pierre renders well | ✅ Green | 13 files, 545-line SQL, no preprocessing of `gh pr diff` output. |
+| H2 — Annotation API fits | ✅ Green | `lineAnnotations` + `renderAnnotation` accept generic metadata; severity + custom UI via the documented public API. |
+| H3 — Tauri feels real | ✅ Green | 10 MB bundle, ~2s cold-start to diff visible, native window chrome. |
 
 ### Decision tree
 
