@@ -1,9 +1,40 @@
 import { useCallback, useMemo, useRef } from "react";
-import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
+import {
+  parsePatchFiles,
+  type DiffLineAnnotation,
+  type FileDiffMetadata,
+} from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { FileTree, useFileTree } from "@pierre/trees/react";
 import { diffText } from "./fixtures";
+import { ANNOTATIONS, type AnnotationMeta } from "./annotations";
 import "./styles.css";
+
+const SEVERITY_GLYPHS: Record<AnnotationMeta["severity"], string> = {
+  blocker: "●",
+  suggestion: "◆",
+  nit: "·",
+};
+
+function renderAnnotation(
+  annotation: DiffLineAnnotation<AnnotationMeta>,
+) {
+  const meta = annotation.metadata;
+  return (
+    <div
+      className={`annotation annotation--${meta.severity}`}
+      data-annotation-id={meta.id}
+    >
+      <div className="annotation__row">
+        <span className="annotation__glyph" aria-hidden="true">
+          {SEVERITY_GLYPHS[meta.severity]}
+        </span>
+        <span className="annotation__severity">{meta.severity}</span>
+        <span className="annotation__title">{meta.title}</span>
+      </div>
+    </div>
+  );
+}
 
 function App() {
   const files = useMemo<FileDiffMetadata[]>(() => {
@@ -60,7 +91,11 @@ function App() {
                 fileRefs.current.set(fileDiff.name, el);
               }}
             >
-              <FileDiff fileDiff={fileDiff} />
+              <FileDiff<AnnotationMeta>
+                fileDiff={fileDiff}
+                lineAnnotations={ANNOTATIONS[fileDiff.name] ?? []}
+                renderAnnotation={renderAnnotation}
+              />
             </div>
           ))}
         </main>

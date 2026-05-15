@@ -72,3 +72,60 @@ body,
 .spike-file {
   scroll-margin-top: 16px;
 }
+
+.annotation {
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid transparent;
+  background: #1a1a1f;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #e2e2e6;
+}
+
+.annotation--blocker {
+  border-left-color: #d54a4a;
+  background: #2a1414;
+}
+
+.annotation--suggestion {
+  border-left-color: #d0a04a;
+  background: #25201a;
+}
+
+.annotation--nit {
+  border-left-color: #5a8ad6;
+  background: #1a1f28;
+}
+
+.annotation__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.annotation__glyph {
+  font-size: 14px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.annotation--blocker .annotation__glyph { color: #ff6b6b; }
+.annotation--suggestion .annotation__glyph { color: #ffc56b; }
+.annotation--nit .annotation__glyph { color: #8aabe6; }
+
+.annotation__severity {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8a8a90;
+  flex-shrink: 0;
+}
+
+.annotation__title {
+  font-weight: 500;
+}
