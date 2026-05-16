@@ -22,7 +22,9 @@ import {
 } from "../hooks/useAnnotations";
 import { AnnotationCard } from "../components/AnnotationCard";
 import { ChatSidebar } from "../components/ChatSidebar";
+import { DiffOverviewHeader, DiffOverviewSidebar } from "../components/DiffOverview";
 import { REVIEW_DIFF_CHAR_CAP, buildReviewDiffString } from "../lib/aiReview";
+import { summarizeDiff } from "../lib/diffSummary";
 import { selfReviewRefs } from "../lib/selfReview";
 import type { ChatSelection, ChatTurn } from "../lib/promptTemplates";
 
@@ -136,6 +138,11 @@ export function DiffPanel({ handleRef }: Props) {
   const treeStyles = useMemo(
     () => themeToTreeStyles({ type: themeResolved }) as CSSProperties,
     [themeResolved],
+  );
+
+  const diffSummary = useMemo(
+    () => summarizeDiff(files, annotations.byFile),
+    [files, annotations.byFile],
   );
 
   const reload = useCallback(() => setReloadToken((t) => t + 1), []);
@@ -273,41 +280,51 @@ export function DiffPanel({ handleRef }: Props) {
   return (
     <div className="deck-diff">
       <header className="deck-diff-toolbar">
-        <BranchPicker
-          ref={basePickerRef}
-          label="base"
-          value={base}
-          options={branches}
-          onChange={setBase}
+        <DiffOverviewHeader
+          summary={diffSummary}
+          base={base}
+          head={head}
+          reviewing={annotations.reviewing}
+          reviewElapsedMs={reviewElapsed}
+          skippedAnnotations={annotations.lastSkipped}
         />
-        <span className="deck-diff-arrow" aria-hidden="true">→</span>
-        <BranchPicker
-          ref={headPickerRef}
-          label="head"
-          value={head}
-          options={branches}
-          onChange={setHead}
-        />
-        <button
-          type="button"
-          className="deck-diff-action"
-          onClick={triggerReview}
-          disabled={annotations.reviewing || files.length === 0}
-        >
-          {annotations.reviewing ? "Reviewing…" : "Review"}
-        </button>
-        <button
-          type="button"
-          className="deck-diff-action"
-          onClick={() => setChatOpen((v) => !v)}
-          aria-pressed={chatOpen}
-        >
-          {chatOpen ? "Hide chat" : "Chat"}
-        </button>
-        <button type="button" className="deck-diff-reload" onClick={reload}>
-          Reload
-        </button>
-        {diffLoading && <span className="deck-diff-status">Loading…</span>}
+        <div className="deck-diff-controls">
+          <BranchPicker
+            ref={basePickerRef}
+            label="base"
+            value={base}
+            options={branches}
+            onChange={setBase}
+          />
+          <span className="deck-diff-arrow" aria-hidden="true">→</span>
+          <BranchPicker
+            ref={headPickerRef}
+            label="head"
+            value={head}
+            options={branches}
+            onChange={setHead}
+          />
+          <button
+            type="button"
+            className="deck-diff-action deck-diff-action-primary"
+            onClick={triggerReview}
+            disabled={annotations.reviewing || files.length === 0}
+          >
+            {annotations.reviewing ? "Reviewing…" : "Review"}
+          </button>
+          <button
+            type="button"
+            className="deck-diff-action"
+            onClick={() => setChatOpen((v) => !v)}
+            aria-pressed={chatOpen}
+          >
+            {chatOpen ? "Hide chat" : "Chat"}
+          </button>
+          <button type="button" className="deck-diff-reload" onClick={reload}>
+            Reload
+          </button>
+          {diffLoading && <span className="deck-diff-status">Loading…</span>}
+        </div>
       </header>
 
       {annotations.reviewing && (
@@ -335,7 +352,17 @@ export function DiffPanel({ handleRef }: Props) {
 
       <div className="deck-diff-body">
         <aside className="deck-diff-tree">
-          <FileTree model={treeModel} style={treeStyles} />
+          <DiffOverviewSidebar
+            summary={diffSummary}
+            base={base}
+            head={head}
+            reviewing={annotations.reviewing}
+            reviewElapsedMs={reviewElapsed}
+            skippedAnnotations={annotations.lastSkipped}
+          />
+          <div className="deck-diff-tree-list">
+            <FileTree model={treeModel} style={treeStyles} />
+          </div>
         </aside>
         <main className="deck-diff-main">
           {diffLoading && files.length === 0 && (
