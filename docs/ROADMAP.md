@@ -58,9 +58,9 @@ Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with meas
 
 ---
 
-## Phase 2 — AI loop (2–3 weekends) — code-complete 2026-05-15, H7/H8/H9 manual walk pending
+## Phase 2 — AI loop (2–3 weekends) — code-complete 2026-05-17, daily-use gate open
 
-**Status:** All 9 plan steps landed; machine gates green (`cargo test` 18, `pnpm test` 28, `pnpm build` + `cargo build` clean). Manual H7/H8/H9 walkthrough against a real branch + live `claude` CLI is the remaining gate item. See 2026-05-15 DECISIONS entry for the full breakdown.
+**Status:** End-to-end review run succeeded today (2026-05-17): claude returned schema-shaped JSON, parser extracted two `suggestion`-level annotations against the `main`→`test` diff, both rendered with Accept/Dismiss/Ask. Cost-per-run ~$0.30–$0.50 (informational on Max plan). Machine gates: `cargo test` 18, `pnpm test` 31, `pnpm build` + `cargo build` clean. See the 2026-05-17 DECISIONS entry for the full breakdown of the prose-result and empty-result failure modes that were fixed via `--append-system-prompt` + lenient parser cascade. **The "reach for Deck over GitHub ≥50% in a week of daily use" gate is the remaining open item — it's a lived-experience gate, not a CI gate.**
 
 **Goal:** The reason Deck exists.
 
@@ -82,16 +82,23 @@ Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with meas
 
 ---
 
-## Phase 3 — Terminals (3–4 weekends)
+## Phase 3 — Terminals + worktrees-as-primary-diff-source (3–4 weekends)
 
-**Goal:** Single-window thesis becomes real.
+**Goal:** Single-window thesis becomes real, and the worktree replaces the branch picker as the primary frame for getting diffs.
+
+**Direction — worktrees as the primary diff face:**
+- Today (Phase 2) the diff is sourced from `get_diff(base, head)` over committed refs. Useful, but it ignores the actual state on disk.
+- Phase 3 should flip this: the selected **worktree** is what you're looking at. The diff defaults to "what's different in this worktree vs. its branch's merge-base" — combining committed history *and* uncommitted (index + working-tree) changes by default. The branch picker becomes a way to compare against, not the primary lens.
+- Pull as much as possible from local state: status, file list, content of uncommitted files, hunks of in-progress edits. Avoid any path that requires the user to commit just to see a diff. `git2-rs` already exposes `diff_tree_to_index`, `diff_index_to_workdir`, `diff_tree_to_workdir_with_index` — wire them.
+- F4/F5/F6 should follow: reviewing a worktree should include in-progress work, not just the last commit.
 
 **Build:**
+- **F1** — Worktree management panel (status, create, delete, switch-context). This becomes the home base; the diff and chat are scoped to it.
+- New git surface: `get_worktree_diff(worktree_id, mode)` where mode is `working` (everything vs. merge-base, including uncommitted), `committed` (HEAD vs. merge-base), or `compare(base, head)` (current Phase 2 behavior, kept for explicit comparisons).
 - **F2** — Embedded terminals: xterm.js + tmux. One tmux server per Deck install, one tmux session per worktree, splits inside.
-- **F1** — Worktree management panel (status, create, delete, switch-context).
-- Per-worktree state scoping (sessions, annotations, spec, chat history). Worktree ID is the key everywhere.
+- Per-worktree state scoping (sessions, annotations, spec, chat history). Worktree ID is the key everywhere — already true in the schema; make it true in the UI.
 
-**Gate:** Do I prefer Deck's terminals to Ghostty for Claude Code sessions? If no, keep using cmux/Ghostty externally and reconsider whether F2 is worth the maintenance cost.
+**Gate:** (a) Do I prefer Deck's terminals to Ghostty for Claude Code sessions? (b) Does reviewing a worktree-with-uncommitted-changes feel obviously better than the Phase 2 ref-pair flow? If (a) is no, keep using cmux/Ghostty externally. If (b) is no, the worktree-first framing was wrong and we should re-examine.
 
 ---
 

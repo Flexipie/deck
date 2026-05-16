@@ -107,9 +107,29 @@ export function useRegisterCommands(scope: CommandScope, commands: Command[]) {
   const ref = useRef(commands);
   ref.current = commands;
   const idsKey = commands.map((c) => c.id).join("|") + "::" + scope;
+  // The registered commands wrap each `execute` in an indirection that reads
+  // from `ref.current` at call time. Without this, the registry holds the
+  // first-render closures — which often close over stale `worktreeId`,
+  // `base`, `head`, or hook state from before identity/diff finished loading.
+  const stableCommands = useMemo<Command[]>(
+    () =>
+      commands.map((c) => ({
+        id: c.id,
+        label: c.label,
+        hint: c.hint,
+        scope: c.scope,
+        execute: async () => {
+          const fresh = ref.current.find((x) => x.id === c.id);
+          if (!fresh) return;
+          return fresh.execute();
+        },
+      })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [idsKey],
+  );
   useEffect(() => {
-    return store.register(scope, ref.current);
-  }, [store, idsKey]);
+    return store.register(scope, stableCommands);
+  }, [store, stableCommands]);
 }
 
 export function useCommands(activePanel: PanelId): Command[] {

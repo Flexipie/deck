@@ -6,6 +6,66 @@ Each entry: date · decision · rationale · alternatives rejected. Newest at to
 
 ---
 
+## 2026-05-17 · Phase 2.5 close-out: F4 review works end-to-end
+
+**Decision:** Phase 2 is functionally complete. First successful end-to-end review run today against the `main`→`test` diff: claude returned a clean JSON object, parser extracted two `suggestion`-level annotations on real lines, both landed in the UI with Accept/Dismiss/Ask. Cost-per-run is $0.30–$0.50 on a Max subscription (informational; no per-call charge).
+
+**What broke during the walk, and what fixed it:**
+
+| Failure mode | Root cause | Fix |
+|---|---|---|
+| First run: prose narration in `result` field | `--json-schema` doesn't bind claude's final text when tools are available; claude treated the prompt as a task to perform and narrated what it "did" | Lenient parser cascade in `parseReviewResponse` (strict → fenced block → balanced-brace scan) + raw-response `<details>` panel for debugging |
+| Second run: empty `result` (`""`) with 4884 output tokens spent | Claude ended on a tool call instead of a text message in agentic mode; `--output-format json` only captures final assistant text | `--append-system-prompt` with explicit rule: "After any tool use turn, the very next turn MUST be your final JSON message. Do not end on a tool call." |
+| Palette commands silently no-op'd | (a) `useRegisterCommands` registered first-render closures with stale state; (b) user clicked palette before `repoIdentity()` finished loading | (a) Wrapped commands in a stable indirection that reads from `ref.current` at call time; (b) added a transient "Repo still loading…" notice banner so the failure is visible |
+
+**Why we kept tools on for F4 instead of `--tools ""`:** the user's call. Tool access lets claude check call sites, type defs, and surrounding patterns — meaningfully better than reviewing from the diff alone. The system-prompt fix made tools-on viable.
+
+**Engineering hygiene at close:**
+- `pnpm test`: 31 passing (4 new parser-fallback cases).
+- `cargo test`: 18 passing.
+- `pnpm tsc`: clean.
+- `pnpm build`: clean (same Shiki chunk-size warnings as before).
+
+**Gate status:**
+- ✅ F4 produces useful annotations on real branches (verified once today).
+- ⏳ "Reach for Deck over GitHub ≥50% in a week of daily use" — still open; needs lived experience, not a one-off test.
+
+**How to apply:** When adding new agent flows (F6 → eventually F8 multi-agent), keep three lessons load-bearing:
+1. The output is the goal. Frame prompts around "produce X" not "review Y".
+2. System prompt binds harder than user prompt for agentic loops. Use `--append-system-prompt` for invariants that must hold across all turns.
+3. Always have a lenient parser. Schema flags don't always bind. Prose-with-embedded-JSON is a real failure mode worth handling.
+
+**Rejected alternatives in this slice:**
+- **Disabling tools (`--tools ""`):** would solve the binding problem but loses real value of context-gathering. Revisit only if cost or speed becomes prohibitive on a non-Max plan.
+- **Queueing early-firing palette commands:** implicit behavior is hard to debug; visible notice + retry is more honest.
+- **Per-command enable/disable in palette:** more invasive UX; revisit when Phase 3 introduces multiple worktrees.
+
+**Phase 3 starts next session:** worktrees + terminals + worktree-first diff source (the rework of `get_diff` already documented in the 2026-05-16 entry below).
+
+---
+
+## 2026-05-16 · Worktrees as the primary diff source (Phase 3 direction)
+
+**Decision:** From Phase 3 onward, the **worktree** is the primary frame for getting a diff in Deck, and the diff defaults to "what's different in this worktree" — combining committed history *and* uncommitted (index + working-tree) changes. Pull as much as possible from local git state; never require the user to commit just to see a diff.
+
+**Today (Phase 2):** the diff is sourced from `get_diff(base, head)` over committed refs only. The head/base pickers are the primary lens.
+
+**Phase 3+ shape:**
+- Worktree selection drives the diff. Branch picker becomes a *comparison* affordance, not the primary lens.
+- New Rust surface: `get_worktree_diff(worktree_id, mode)` where mode is one of `working` (everything vs. merge-base, including uncommitted), `committed` (HEAD vs. merge-base), or `compare(base, head)` (current Phase 2 behavior, kept for explicit comparisons).
+- F4/F5/F6 follow: reviewing a worktree should review in-progress work by default. The current "commit before you can review" friction goes away.
+- Implementation already available via `git2-rs`: `diff_tree_to_index`, `diff_index_to_workdir`, `diff_tree_to_workdir_with_index`.
+
+**Why:** Deck's thesis is per-worktree workflow. The current ref-pair UI inherits GitHub's mental model (PRs = pushed commits), which contradicts the local-first goal. Reviewing what's on disk — including the half-finished hunk you just typed — is the *actual* developer task most of the time.
+
+**How to apply:** When Phase 3 work starts, the F1 worktree panel and the diff-source rework are linked, not separate features. Build `get_worktree_diff` first; let F1 drive `<DiffPanel>` via worktree selection; keep the explicit base/head picker as a secondary affordance for comparing across worktrees or against arbitrary refs.
+
+**Rejected alternatives:**
+- **Add an "include uncommitted" toggle to the existing Phase 2 ref-pair flow.** Cheaper, but cements the wrong primary mental model and makes worktrees a second-class concept.
+- **Wait until F4/F5/F6 prove themselves on committed-only diffs first (i.e. defer the redesign).** That's what we're doing for Phase 2; the deferral has a date — when F1 lands in Phase 3.
+
+---
+
 ## 2026-05-15 · Phase 2 (AI loop) machine-gates green; H7/H8/H9 manual walkthrough pending
 
 **Decision:** Phase 2 (F4/F5/F6) is code-complete and machine-verified. Manual H7/H8/H9 walkthrough against a real branch is pending — gate verdict is conditionally green pending that walk.

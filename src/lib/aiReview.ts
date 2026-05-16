@@ -9,7 +9,7 @@ import {
   runClaude,
   type ReviewAnnotation,
 } from "../adapters/claude";
-import { REVIEW_PROMPT, REVIEW_SCHEMA } from "./promptTemplates";
+import { REVIEW_PROMPT, REVIEW_SCHEMA, REVIEW_SYSTEM_PROMPT } from "./promptTemplates";
 import { insertAnnotation, type AnnotationRow } from "./db";
 
 export const REVIEW_DIFF_CHAR_CAP = 80_000;
@@ -18,6 +18,22 @@ export class DiffTooLargeError extends Error {
   constructor(public readonly chars: number) {
     super(`diff too large for review: ${chars} chars (cap ${REVIEW_DIFF_CHAR_CAP})`);
     this.name = "DiffTooLargeError";
+  }
+}
+
+/**
+ * Thrown when claude returned a response but we couldn't extract annotations
+ * from it. Carries the raw text so the UI can show it without forcing the
+ * user to open DevTools.
+ */
+export class ReviewParseError extends Error {
+  constructor(public readonly raw: string, cause: unknown) {
+    super(
+      cause instanceof Error
+        ? `couldn't extract annotations: ${cause.message}`
+        : "couldn't extract annotations from claude response",
+    );
+    this.name = "ReviewParseError";
   }
 }
 
@@ -130,28 +146,89 @@ export async function runReview(args: RunReviewArgs): Promise<RunReviewResult> {
   const invokeFn = args.invoke ?? runClaude;
   const insertFn = args.insert ?? insertAnnotation;
 
+  console.log("[review] start", {
+    worktreeId,
+    fileCount: files.length,
+    fileNames: files.map((f) => f.name),
+  });
+
   const diff = buildReviewDiffString(files);
+  console.log("[review] diff built", {
+    chars: diff.length,
+    cap: REVIEW_DIFF_CHAR_CAP,
+    preview: diff.slice(0, 400),
+  });
   if (diff.length > REVIEW_DIFF_CHAR_CAP) {
+    console.warn("[review] diff over cap, aborting");
     throw new DiffTooLargeError(diff.length);
   }
 
+  console.log("[review] invoking claude…");
   const response = await invokeFn({
     prompt: REVIEW_PROMPT(diff),
     jsonSchema: REVIEW_SCHEMA,
+    appendSystemPrompt: REVIEW_SYSTEM_PROMPT,
+  });
+  console.log("[review] claude response", {
+    ok: response.ok,
+    error: response.error,
+    durationMs: response.duration_ms,
+    costUsd: response.total_cost_usd,
+    sessionId: response.session_id,
+    resultPreview: response.result ? response.result.slice(0, 800) : null,
+    resultLength: response.result?.length ?? 0,
+    rawPreview: response.raw ? response.raw.slice(0, 800) : "",
   });
 
   if (!response.ok) {
+    console.error("[review] claude returned error envelope", response.error);
     throw new Error(response.error ?? "claude returned an error");
   }
   const raw = response.result ?? "";
-  const parsed = parseReviewResponse(raw);
+
+  let parsed: ReviewAnnotation[];
+  try {
+    parsed = parseReviewResponse(raw);
+  } catch (e) {
+    console.error("[review] parseReviewResponse threw", e, { raw });
+    throw new ReviewParseError(raw, e);
+  }
+  console.log("[review] parsed annotations", {
+    count: parsed.length,
+    items: parsed.map((a) => ({ file: a.file, line: a.line, side: a.side, severity: a.severity, title: a.title })),
+  });
+
   const index = buildFileLineIndex(files);
+  console.log(
+    "[review] file/line index",
+    [...index.entries()].map(([file, entry]) => ({
+      file,
+      additions: [...entry.additions].sort((a, b) => a - b),
+      deletions: [...entry.deletions].sort((a, b) => a - b),
+    })),
+  );
 
   const inserted: AnnotationRow[] = [];
   let skipped = 0;
   for (const ann of parsed) {
-    if (!validateAnnotation(ann, index)) {
+    const entry = index.get(ann.file);
+    if (!entry) {
       skipped++;
+      console.warn("[review] skip: file not in diff index", {
+        file: ann.file,
+        knownFiles: [...index.keys()],
+      });
+      continue;
+    }
+    const set = ann.side === "additions" ? entry.additions : entry.deletions;
+    if (!set.has(ann.line)) {
+      skipped++;
+      console.warn("[review] skip: line not in diff", {
+        file: ann.file,
+        line: ann.line,
+        side: ann.side,
+        availableLines: [...set].sort((a, b) => a - b),
+      });
       continue;
     }
     const id = await insertFn({
@@ -164,6 +241,7 @@ export async function runReview(args: RunReviewArgs): Promise<RunReviewResult> {
       detail: ann.detail,
       suggestion: ann.suggestion ?? null,
     });
+    console.log("[review] inserted annotation", { id, file: ann.file, line: ann.line, severity: ann.severity });
     inserted.push({
       id,
       worktree_id: worktreeId,
@@ -180,6 +258,11 @@ export async function runReview(args: RunReviewArgs): Promise<RunReviewResult> {
       accepted_at: null,
     });
   }
+  console.log("[review] done", {
+    inserted: inserted.length,
+    skipped,
+    durationMs: response.duration_ms,
+  });
   return {
     inserted,
     skipped,

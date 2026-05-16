@@ -400,6 +400,29 @@ body {
   cursor: default;
 }
 
+.deck-raw-response {
+  margin-top: 6px;
+  font-size: 11px;
+}
+.deck-raw-response summary {
+  cursor: pointer;
+  color: var(--deck-fg-muted);
+  font-weight: 500;
+}
+.deck-raw-response pre {
+  margin: 6px 0 0;
+  max-height: 240px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--deck-bg);
+  border: 1px solid var(--deck-border);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--deck-fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .deck-progress-banner,
 .deck-info-banner {
   display: flex;
@@ -566,6 +589,51 @@ body {
 }
 .deck-chat-content {
   white-space: pre-wrap;
+}
+.deck-chat-markdown {
+  white-space: normal;
+}
+.deck-chat-markdown > :first-child {
+  margin-top: 0;
+}
+.deck-chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+.deck-chat-markdown p,
+.deck-chat-markdown ul,
+.deck-chat-markdown ol {
+  margin: 6px 0;
+}
+.deck-chat-markdown ul,
+.deck-chat-markdown ol {
+  padding-left: 20px;
+}
+.deck-chat-markdown code {
+  background: var(--deck-toolbar-bg);
+  border: 1px solid var(--deck-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.deck-chat-markdown pre {
+  background: var(--deck-toolbar-bg);
+  border: 1px solid var(--deck-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 6px 0;
+  overflow-x: auto;
+  font-size: 11px;
+}
+.deck-chat-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+}
+.deck-chat-markdown a {
+  color: var(--deck-accent);
+  text-decoration: underline;
 }
 .deck-chat-user .deck-chat-content {
   background: var(--deck-toolbar-bg);

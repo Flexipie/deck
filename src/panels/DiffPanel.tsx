@@ -53,6 +53,15 @@ export function DiffPanel({ handleRef }: Props) {
   const [chatSessionId, setChatSessionId] = useState<string | null>(null);
   const [reviewElapsed, setReviewElapsed] = useState<number | null>(null);
   const [liveElapsed, setLiveElapsed] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const flashNotice = useCallback((msg: string) => {
+    setNotice(msg);
+    setTimeout(
+      () => setNotice((current) => (current === msg ? null : current)),
+      3000,
+    );
+  }, []);
 
   const basePickerRef = useRef<BranchPickerHandle | null>(null);
   const headPickerRef = useRef<BranchPickerHandle | null>(null);
@@ -142,16 +151,38 @@ export function DiffPanel({ handleRef }: Props) {
 
   const triggerReview = useCallback(async () => {
     const current = filesRef.current;
-    if (current.length === 0) return;
+    console.log("[diffPanel] triggerReview", {
+      base,
+      head,
+      fileCount: current.length,
+      fileNames: current.map((f) => f.name),
+    });
+    if (worktreeId === "pending") {
+      console.warn("[diffPanel] triggerReview aborted — repo identity not ready");
+      flashNotice("Repo still loading — try again in a moment.");
+      return;
+    }
+    if (current.length === 0) {
+      console.warn("[diffPanel] triggerReview aborted — no files in diff");
+      if (diffLoading) {
+        flashNotice("Diff hasn't loaded yet — try again in a moment.");
+      }
+      return;
+    }
     const diffStr = buildReviewDiffString(current);
+    console.log("[diffPanel] built diff for review", {
+      chars: diffStr.length,
+      cap: REVIEW_DIFF_CHAR_CAP,
+    });
     if (diffStr.length > REVIEW_DIFF_CHAR_CAP) {
+      console.warn("[diffPanel] diff over cap", { chars: diffStr.length });
       setDiffError(
         `Diff too large for review (${diffStr.length} chars, cap ${REVIEW_DIFF_CHAR_CAP}). Review piecemeal.`,
       );
       return;
     }
     await annotations.runReview(current);
-  }, [annotations]);
+  }, [annotations, base, head, worktreeId, diffLoading, flashNotice]);
 
   const handleAsk = useCallback(
     ({
@@ -190,9 +221,17 @@ export function DiffPanel({ handleRef }: Props) {
     if (!pendingReviewAfterLoad) return;
     if (diffLoading) return;
     setPendingReviewAfterLoad(false);
-    if (files.length === 0) return;
+    console.log("[diffPanel] post-self-review load finished", {
+      fileCount: files.length,
+      fileNames: files.map((f) => f.name),
+    });
+    if (files.length === 0) {
+      console.warn("[diffPanel] self-review: nothing to review (empty diff)");
+      flashNotice("Nothing to review on this branch (HEAD matches the default branch).");
+      return;
+    }
     triggerReview().catch(() => {});
-  }, [pendingReviewAfterLoad, diffLoading, files, triggerReview]);
+  }, [pendingReviewAfterLoad, diffLoading, files, triggerReview, flashNotice]);
 
   useEffect(() => {
     if (!handleRef) return;
@@ -207,32 +246,54 @@ export function DiffPanel({ handleRef }: Props) {
     };
   }, [handleRef, reload, setRefsAndReview]);
 
+  const trace = useCallback(
+    <Args extends unknown[], R>(
+      id: string,
+      fn: (...args: Args) => R,
+    ): ((...args: Args) => R) => {
+      return (...args: Args) => {
+        console.log("[palette] execute", id);
+        return fn(...args);
+      };
+    },
+    [],
+  );
+
   usePanelCommands("diff", [
-    { id: "diff.reload", label: "Reload diff", execute: reload },
+    { id: "diff.reload", label: "Reload diff", execute: trace("diff.reload", reload) },
     {
       id: "diff.switchBase",
       label: "Switch base branch",
-      execute: () => basePickerRef.current?.open(),
+      execute: trace("diff.switchBase", () => basePickerRef.current?.open()),
     },
     {
       id: "diff.switchHead",
       label: "Switch head branch",
-      execute: () => headPickerRef.current?.open(),
+      execute: trace("diff.switchHead", () => headPickerRef.current?.open()),
     },
-    { id: "diff.review", label: "Review this diff", execute: triggerReview },
+    {
+      id: "diff.review",
+      label: "Review this diff",
+      execute: trace("diff.review", triggerReview),
+    },
     {
       id: "diff.chat",
       label: chatOpen ? "Close chat" : "Open chat",
-      execute: () => setChatOpen((v) => !v),
+      execute: trace("diff.chat", () => setChatOpen((v) => !v)),
     },
     {
       id: "app.selfReview",
       label: "Self-review my branch",
-      execute: async () => {
-        if (!identity) return;
+      execute: trace("app.selfReview", async () => {
+        if (!identity) {
+          console.warn("[palette] app.selfReview: no identity yet");
+          flashNotice("Repo still loading — try again in a moment.");
+          return;
+        }
         const refs = await selfReviewRefs(identity);
+        console.log("[palette] app.selfReview refs", refs);
         await setRefsAndReview(refs.base, refs.head);
-      },
+      }),
     },
   ]);
 
@@ -310,6 +371,11 @@ export function DiffPanel({ handleRef }: Props) {
         {diffLoading && <span className="deck-diff-status">Loading…</span>}
       </header>
 
+      {notice && (
+        <div className="deck-info-banner" role="status">
+          {notice}
+        </div>
+      )}
       {annotations.reviewing && (
         <div className="deck-progress-banner" role="status">
           <span className="deck-spinner" aria-hidden="true" />
@@ -318,13 +384,24 @@ export function DiffPanel({ handleRef }: Props) {
       )}
       {annotations.reviewError && (
         <div className="deck-error-banner" role="alert">
-          Review error: {annotations.reviewError}
+          <div>Review error: {annotations.reviewError}</div>
+          {annotations.lastRawResponse && (
+            <details className="deck-raw-response">
+              <summary>View raw claude response ({annotations.lastRawResponse.length} chars)</summary>
+              <pre>{annotations.lastRawResponse}</pre>
+            </details>
+          )}
         </div>
       )}
-      {!annotations.reviewing && reviewElapsed != null && annotations.lastSkipped > 0 && !annotations.reviewError && (
+      {!annotations.reviewing && reviewElapsed != null && !annotations.reviewError && (
         <div className="deck-info-banner">
-          Skipped {annotations.lastSkipped} invalid annotation
-          {annotations.lastSkipped === 1 ? "" : "s"} ({Math.round(reviewElapsed / 100) / 10}s).
+          Review complete ({Math.round(reviewElapsed / 100) / 10}s).
+          {annotations.lastSkipped > 0 && (
+            <>
+              {" "}Skipped {annotations.lastSkipped} invalid annotation
+              {annotations.lastSkipped === 1 ? "" : "s"} — see console.
+            </>
+          )}
         </div>
       )}
       {diffError && (
@@ -395,6 +472,7 @@ export function DiffPanel({ handleRef }: Props) {
           onSessionId={setChatSessionId}
           history={chatHistory}
           onHistoryChange={setChatHistory}
+          cwd={identity?.path ?? null}
         />
       </div>
     </div>

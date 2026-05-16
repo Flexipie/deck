@@ -100,7 +100,17 @@ pub async fn run_claude(
     json_schema: Option<serde_json::Value>,
     resume_session: Option<String>,
     cwd: Option<String>,
+    append_system_prompt: Option<String>,
 ) -> Result<AgentResponse, AgentError> {
+    eprintln!(
+        "[agent] run_claude invoked: prompt_chars={} has_schema={} resume_session={:?} cwd={:?} append_system_prompt_chars={}",
+        prompt.len(),
+        json_schema.is_some(),
+        resume_session,
+        cwd,
+        append_system_prompt.as_ref().map(|s| s.len()).unwrap_or(0),
+    );
+
     let mut args: Vec<String> = vec![
         "-p".into(),
         prompt,
@@ -118,39 +128,100 @@ pub async fn run_claude(
         args.push("--resume".into());
         args.push(id);
     }
+    if let Some(sys) = append_system_prompt {
+        args.push("--append-system-prompt".into());
+        args.push(sys);
+    }
 
     let bin = claude_bin();
+    // Log a sanitized view of the args (omit the prompt text, keep its length).
+    let arg_summary: Vec<String> = args
+        .iter()
+        .enumerate()
+        .map(|(i, a)| {
+            if i == 1 {
+                format!("<prompt {} chars>", a.len())
+            } else if a.len() > 200 {
+                format!("<{} chars>", a.len())
+            } else {
+                a.clone()
+            }
+        })
+        .collect();
+    eprintln!("[agent] spawning: {} {:?}", bin, arg_summary);
+
     let mut cmd = app.shell().command(&bin).args(args);
     if let Some(dir) = cwd {
         cmd = cmd.current_dir(dir);
     }
 
+    let t0 = std::time::Instant::now();
     let fut = cmd.output();
     let output = timeout(Duration::from_secs(CLAUDE_TIMEOUT_SECS), fut)
         .await
-        .map_err(|_| AgentError::Timeout(CLAUDE_TIMEOUT_SECS))?
-        .map_err(|e| AgentError::Spawn(e.to_string()))?;
+        .map_err(|_| {
+            eprintln!("[agent] timeout after {}s", CLAUDE_TIMEOUT_SECS);
+            AgentError::Timeout(CLAUDE_TIMEOUT_SECS)
+        })?
+        .map_err(|e| {
+            eprintln!("[agent] spawn error: {}", e);
+            AgentError::Spawn(e.to_string())
+        })?;
+
+    let elapsed_ms = t0.elapsed().as_millis();
+    let stderr_str = String::from_utf8_lossy(&output.stderr).to_string();
+    eprintln!(
+        "[agent] process done: elapsed_ms={} status={:?} stdout_bytes={} stderr_bytes={}",
+        elapsed_ms,
+        output.status.code(),
+        output.stdout.len(),
+        output.stderr.len(),
+    );
+    if !stderr_str.is_empty() {
+        eprintln!(
+            "[agent] stderr (first 800 chars): {}",
+            &stderr_str.chars().take(800).collect::<String>(),
+        );
+    }
 
     let stdout = String::from_utf8(output.stdout).map_err(|_| AgentError::InvalidUtf8)?;
+    eprintln!(
+        "[agent] stdout (first 800 chars): {}",
+        &stdout.chars().take(800).collect::<String>(),
+    );
 
     if !output.status.success() && stdout.trim().is_empty() {
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        eprintln!("[agent] non-zero exit with empty stdout, returning error envelope");
         return Ok(AgentResponse {
             ok: false,
             result: None,
             session_id: None,
             duration_ms: None,
             total_cost_usd: None,
-            error: Some(if stderr.is_empty() {
+            error: Some(if stderr_str.is_empty() {
                 format!("{} exited with status {:?}", bin, output.status.code())
             } else {
-                stderr.clone()
+                stderr_str.clone()
             }),
-            raw: stderr,
+            raw: stderr_str,
         });
     }
 
-    parse_envelope(&stdout)
+    match parse_envelope(&stdout) {
+        Ok(r) => {
+            eprintln!(
+                "[agent] envelope parsed: ok={} result_chars={} session_id={:?}",
+                r.ok,
+                r.result.as_ref().map(|s| s.len()).unwrap_or(0),
+                r.session_id,
+            );
+            Ok(r)
+        }
+        Err(e) => {
+            eprintln!("[agent] envelope parse failed: {}", e);
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]

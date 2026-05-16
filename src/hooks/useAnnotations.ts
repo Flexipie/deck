@@ -6,7 +6,7 @@ import {
   listAnnotations,
   type AnnotationRow,
 } from "../lib/db";
-import { runReview as runReviewOrchestrator } from "../lib/aiReview";
+import { runReview as runReviewOrchestrator, ReviewParseError } from "../lib/aiReview";
 import type { FileDiffMetadata } from "@pierre/diffs";
 
 export interface AnnotationMeta {
@@ -43,6 +43,8 @@ export interface UseAnnotationsResult {
   byFile: AnnotationsByFile;
   reviewing: boolean;
   reviewError: string | null;
+  /** Raw claude response, set when the parser couldn't extract annotations. */
+  lastRawResponse: string | null;
   reviewElapsedMs: number | null;
   lastSkipped: number;
   runReview: (files: FileDiffMetadata[]) => Promise<void>;
@@ -55,6 +57,7 @@ export function useAnnotations(worktreeId: string): UseAnnotationsResult {
   const [rows, setRows] = useState<AnnotationRow[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [lastRawResponse, setLastRawResponse] = useState<string | null>(null);
   const [reviewElapsedMs, setReviewElapsedMs] = useState<number | null>(null);
   const [lastSkipped, setLastSkipped] = useState(0);
 
@@ -70,18 +73,35 @@ export function useAnnotations(worktreeId: string): UseAnnotationsResult {
 
   const runReview = useCallback(
     async (files: FileDiffMetadata[]) => {
-      if (!worktreeId || worktreeId === "pending") return;
+      if (!worktreeId || worktreeId === "pending") {
+        console.warn("[useAnnotations] runReview skipped — no worktreeId");
+        return;
+      }
+      console.log("[useAnnotations] runReview begin", {
+        worktreeId,
+        fileCount: files.length,
+      });
       setReviewing(true);
       setReviewError(null);
+      setLastRawResponse(null);
       setReviewElapsedMs(null);
       const started = performance.now();
       try {
         const result = await runReviewOrchestrator({ files, worktreeId });
+        console.log("[useAnnotations] runReview result", {
+          inserted: result.inserted.length,
+          skipped: result.skipped,
+          durationMs: result.durationMs,
+        });
         setRows((prev) => [...prev, ...result.inserted]);
         setLastSkipped(result.skipped);
         setReviewElapsedMs(result.durationMs ?? Math.round(performance.now() - started));
       } catch (e) {
+        console.error("[useAnnotations] runReview threw", e);
         setReviewError(e instanceof Error ? e.message : String(e));
+        if (e instanceof ReviewParseError) {
+          setLastRawResponse(e.raw);
+        }
       } finally {
         setReviewing(false);
       }
@@ -111,6 +131,7 @@ export function useAnnotations(worktreeId: string): UseAnnotationsResult {
     byFile,
     reviewing,
     reviewError,
+    lastRawResponse,
     reviewElapsedMs,
     lastSkipped,
     runReview,
