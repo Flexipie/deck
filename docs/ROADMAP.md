@@ -58,18 +58,27 @@ Full write-up: `docs/DECISIONS.md` (2026-05-15 entry). Spike checklist with meas
 
 ---
 
-## Phase 2 — AI loop (2–3 weekends)
+## Phase 2 — AI loop (2–3 weekends) — code-complete 2026-05-15, H7/H8/H9 manual walk pending
+
+**Status:** All 9 plan steps landed; machine gates green (`cargo test` 18, `pnpm test` 28, `pnpm build` + `cargo build` clean). Manual H7/H8/H9 walkthrough against a real branch + live `claude` CLI is the remaining gate item. See 2026-05-15 DECISIONS entry for the full breakdown.
 
 **Goal:** The reason Deck exists.
 
-**Build:**
-- **F4** — AI-annotated diffs. Claude Code adapter (`adapters/claude.ts`). Structured JSON output parsed into Pierre's annotation format and overlaid on the diff. Annotations persisted to SQLite.
-- **F5** — Talk to the diff (chat panel with current diff as context).
-- **F6** — Pre-PR self-review (same engine, pointed at uncommitted/branch diff).
+**Built:**
+- **F4** — AI-annotated diffs. Claude Code adapter (`src/adapters/claude.ts`), `run_claude` Tauri command (`src-tauri/src/agent.rs`), schema-constrained output via `--json-schema`, annotations persisted in SQLite, overlaid on Pierre's `<FileDiff>` via `lineAnnotations` + `renderAnnotation`. Accept/Dismiss/Ask in `AnnotationCard`.
+- **F5** — Chat sidebar inside DiffPanel (`ChatSidebar.tsx`). Diff + selected-line context, session-resume via Claude Code `--resume`. In-memory history for Phase 2.
+- **F6** — Self-review palette command. Computes `merge_base(default_branch, HEAD)` and triggers F4 against the result.
 
-**Forward-compat constraint:** Agent invocation lives only in `adapters/claude.ts`. The rest of the AI code is agent-agnostic.
+**Forward-compat constraint:** Agent invocation lives only in `adapters/claude.ts` + `agent.rs`. The rest of the AI code is agent-agnostic.
 
 **Gate:** Reaching for Deck instead of GitHub for ≥50% of reviews after one week of daily use.
+
+**Phase 2.5 candidates (deferred from Phase 2):**
+- Streaming annotation arrival (`--output-format stream-json`) if 30s buffered feels bad.
+- Chat message persistence (`chat_messages` table). Empty `chats` row stub created in migration 0002; messages are in-memory only.
+- Prompt rubric tuning once we see what claude actually catches on real diffs.
+- Multi-line annotations (`end_line_number`).
+- Lift `app.selfReview` from diff-scope to global-scope when a second panel exists.
 
 ---
 

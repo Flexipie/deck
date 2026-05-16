@@ -11,3 +11,5 @@ export const listBranches = () => invoke<string[]>("list_branches");
 export const listWorktrees = () => invoke<string[]>("list_worktrees");
 export const getDiff = (base: string, head: string) =>
   invoke<string>("get_diff", { base, head });
+export const mergeBase = (a: string, b: string) =>
+  invoke<string>("merge_base", { a, b });

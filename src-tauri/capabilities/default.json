@@ -9,6 +9,19 @@
     "sql:allow-load",
     "sql:allow-execute",
     "sql:allow-select",
-    "sql:allow-close"
+    "sql:allow-close",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "claude", "cmd": "claude", "args": true, "sidecar": false }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        { "name": "claude", "cmd": "claude", "args": true, "sidecar": false }
+      ]
+    }
   ]
 }

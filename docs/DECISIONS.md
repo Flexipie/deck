@@ -6,6 +6,52 @@ Each entry: date · decision · rationale · alternatives rejected. Newest at to
 
 ---
 
+## 2026-05-15 · Phase 2 (AI loop) machine-gates green; H7/H8/H9 manual walkthrough pending
+
+**Decision:** Phase 2 (F4/F5/F6) is code-complete and machine-verified. Manual H7/H8/H9 walkthrough against a real branch is pending — gate verdict is conditionally green pending that walk.
+
+**What landed (against the plan in this session):**
+
+| Step | Status | Evidence |
+|---|---|---|
+| 1 — Migration 0002 (`accepted_at` + `chats` stub) | ✅ | 5 in-memory SQLite tests in `lib::migration_tests`. Existing-row survival verified. |
+| 2 — `merge_base` Rust command | ✅ | 3 tests in `git::tests` (success, self-self, RefNotFound). |
+| 3 — `run_claude` Tauri command via `tauri-plugin-shell` | ✅ | Pure `parse_envelope` extracted; 6 envelope-parsing tests in `agent::tests`. Subprocess plumbing took ~1h of the 3h budget. |
+| 4 — `claude.ts` adapter + prompt template + Vitest | ✅ | 11 tests covering `parseReviewResponse`, `REVIEW_PROMPT`, `REVIEW_SCHEMA`, `CHAT_PROMPT`. |
+| 5 — F4 review wired into DiffPanel | ✅ | `aiReview.ts` orchestrator + 9 tests; `useAnnotations` hook; `AnnotationCard` with severity stripe + Accept/Dismiss/Ask. |
+| 6 — F6 self-review palette | ✅ | `selfReviewRefs` helper with merge-base fallback + 2 tests. |
+| 7 — F5 chat sidebar | ✅ | `ChatSidebar` with session-resume, in-memory history, selection pill. |
+| 8 — Loading/error polish | ✅ | Live elapsed counter while reviewing, inline thinking spinner in chat, error banners, 80k-char cap empty state. |
+| 9 — Write-up | ✅ (this entry) | |
+
+**Machine gate totals:**
+- `cargo test`: 18 passing.
+- `pnpm test`: 28 passing across 4 vitest files.
+- `pnpm build`: clean (TS errors zero; same Shiki chunk size warnings as Phase 1).
+- `cargo build`: clean.
+
+**Manual H7/H8/H9 (pending walkthrough):** the gate questions ("annotations land on the right line", "chat session resume works", "self-review computes the right base") can only be verified by triggering ⌘K → Review on a real branch and reading the output. That walk is the next session.
+
+**Rationale for shipping it without the manual walk done:**
+- The plan called for "review at Step 9", and Step 9's manual checklist depends on a running app + claude CLI. Code is verified to the line numbers it can be verified to without a real claude call.
+- The risky parts (subprocess envelope parsing, annotation validation against the diff, merge-base computation, schema-constrained output parsing) are unit-tested. What's left to verify manually is "is claude's signal/noise good enough to reach for Deck over GitHub" — a judgement call, not a logic bug.
+
+**Known imperfections accepted into Phase 2:**
+- `app.selfReview` is registered under panel scope `"diff"` not `"global"`. Since DiffPanel is the only panel present, it's globally reachable in practice. When Phase 3 adds a second panel, lift to global scope.
+- `DiffPanel.tsx` is 402 lines — 2 over the CLAUDE.md "~400 line" guideline. Splitting into a hook would split selection + chat plumbing across two files for no behavioral win right now; keep it as one file until F1 (worktree mgmt) or terminals bring more state.
+- Chat history is in-memory only (`chats` table created, not yet written to). The plan called this out: persistence wires in Phase 2.5 if we feel pain.
+- `claude` binary resolved via `PATH`. If the spawned Tauri subprocess doesn't see the right `PATH`, override via `PHASE2_CLAUDE_BIN` env var (already supported in `agent.rs`).
+- Annotation validation drops claude outputs whose `line`/`side` don't match the parsed diff. The orchestrator surfaces `skipped` count to the UI so we can tell if claude is hallucinating line numbers.
+
+**Rejected alternatives:**
+- **Streaming annotation arrival (`--output-format stream-json`).** Buffered is one code path; we'll feel pain on huge diffs and revisit then.
+- **Direct Anthropic API for chat.** Two code paths for one feature. Keychain stays out of Phase 2.
+- **Multi-line annotations (`end_line_number`).** Pierre supports range selection but `DiffLineAnnotation` is per-line. Adding range support is real prompt-engineering work; punt.
+
+**How to apply:** When kicking off Phase 3, run the H7/H8/H9 walkthrough first. If it's green, mark Phase 2 PASSED in ROADMAP. If H7 noise is bad, iterate on `REVIEW_PROMPT` in `src/lib/promptTemplates.ts` — that's the dial that matters.
+
+---
+
 ## 2026-05-15 · Theme toggle: drive Pierre's tree + diff via their own APIs, not just CSS vars
 
 **Decision:** App theme state (`'system' | 'light' | 'dark'`) lives in `ThemeProvider`, which writes `data-theme` on `<html>` and exposes both `mode` (raw choice) and `resolved` (concrete `light`/`dark`, watching `matchMedia` when mode is `system`). Three places consume it:

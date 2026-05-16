@@ -25,6 +25,16 @@ export interface AnnotationRow {
   metadata_json: string | null;
   created_at: string;
   dismissed_at: string | null;
+  accepted_at: string | null;
+}
+
+export interface ChatRow {
+  id: number;
+  worktree_id: string;
+  base: string;
+  head: string;
+  claude_session_id: string | null;
+  created_at: string;
 }
 
 export interface NewAnnotation {
@@ -46,12 +56,12 @@ export async function listAnnotations(
   const db = await openDeckDb();
   if (filePath) {
     return db.select<AnnotationRow[]>(
-      "SELECT * FROM annotations WHERE worktree_id = $1 AND file_path = $2 AND dismissed_at IS NULL ORDER BY id",
+      "SELECT * FROM annotations WHERE worktree_id = $1 AND file_path = $2 AND dismissed_at IS NULL AND accepted_at IS NULL ORDER BY id",
       [worktreeId, filePath],
     );
   }
   return db.select<AnnotationRow[]>(
-    "SELECT * FROM annotations WHERE worktree_id = $1 AND dismissed_at IS NULL ORDER BY id",
+    "SELECT * FROM annotations WHERE worktree_id = $1 AND dismissed_at IS NULL AND accepted_at IS NULL ORDER BY id",
     [worktreeId],
   );
 }
@@ -83,4 +93,34 @@ export async function dismissAnnotation(id: number): Promise<void> {
     "UPDATE annotations SET dismissed_at = CURRENT_TIMESTAMP WHERE id = $1",
     [id],
   );
+}
+
+export async function acceptAnnotation(id: number): Promise<void> {
+  const db = await openDeckDb();
+  await db.execute(
+    "UPDATE annotations SET accepted_at = CURRENT_TIMESTAMP WHERE id = $1",
+    [id],
+  );
+}
+
+export async function listChats(worktreeId: string): Promise<ChatRow[]> {
+  const db = await openDeckDb();
+  return db.select<ChatRow[]>(
+    "SELECT * FROM chats WHERE worktree_id = $1 ORDER BY id DESC",
+    [worktreeId],
+  );
+}
+
+export async function insertChat(c: {
+  worktreeId: string;
+  base: string;
+  head: string;
+  claudeSessionId?: string | null;
+}): Promise<number> {
+  const db = await openDeckDb();
+  const result = await db.execute(
+    "INSERT INTO chats (worktree_id, base, head, claude_session_id) VALUES ($1, $2, $3, $4)",
+    [c.worktreeId, c.base, c.head, c.claudeSessionId ?? null],
+  );
+  return result.lastInsertId ?? 0;
 }

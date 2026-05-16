@@ -108,6 +108,25 @@ fn resolve_tree<'r>(repo: &'r Repository, refname: &str) -> Result<git2::Tree<'r
 }
 
 #[tauri::command]
+pub fn merge_base(a: String, b: String) -> Result<String> {
+    let repo = open_repo()?;
+    let oid_a = repo
+        .revparse_single(&a)
+        .map_err(|_| GitError::RefNotFound(a.clone()))?
+        .peel_to_commit()
+        .map_err(|_| GitError::RefNotFound(a.clone()))?
+        .id();
+    let oid_b = repo
+        .revparse_single(&b)
+        .map_err(|_| GitError::RefNotFound(b.clone()))?
+        .peel_to_commit()
+        .map_err(|_| GitError::RefNotFound(b.clone()))?
+        .id();
+    let base = repo.merge_base(oid_a, oid_b)?;
+    Ok(base.to_string())
+}
+
+#[tauri::command]
 pub fn get_diff(base: String, head: String) -> Result<String> {
     let repo = open_repo()?;
     let tree_a = resolve_tree(&repo, &base)?;
@@ -168,5 +187,30 @@ mod tests {
     fn repo_identity_resolves_default_branch() {
         let id = repo_identity().expect("repo_identity failed");
         assert!(!id.default_branch.is_empty());
+    }
+
+    #[test]
+    fn merge_base_main_head_returns_sha() {
+        let sha = merge_base("main".to_string(), "HEAD".to_string()).expect("merge_base failed");
+        assert_eq!(sha.len(), 40, "expected full 40-char sha, got {}", sha);
+        assert!(sha.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn merge_base_head_with_self_returns_head() {
+        let sha = merge_base("HEAD".to_string(), "HEAD".to_string()).expect("merge_base failed");
+        let repo = open_repo().unwrap();
+        let head_oid = repo.head().unwrap().peel_to_commit().unwrap().id();
+        assert_eq!(sha, head_oid.to_string());
+    }
+
+    #[test]
+    fn merge_base_unknown_ref_returns_ref_not_found() {
+        let err = merge_base("nonexistent-zzz".to_string(), "HEAD".to_string())
+            .expect_err("expected error");
+        match err {
+            GitError::RefNotFound(name) => assert_eq!(name, "nonexistent-zzz"),
+            other => panic!("expected RefNotFound, got {:?}", other),
+        }
     }
 }
